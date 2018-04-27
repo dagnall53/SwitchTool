@@ -6,7 +6,7 @@ Number of points (~100) readable is limited by MQTT message limits, you will nee
 The code uses the new Rocrail swprops command which sends all the information about each switch sequentially as separate MQTT messages. 
 This means that the overall message length does not vary with th enuber of swithes, BUT the number of MWTT messages will be the same as the number of switches. Because the ESP can be slow parsing the data, this will mean that there can be quite a lot of "messages in flight". Mosquitto places alimit of 100 messages in flight and this will restrict how many switches the tool can detect/work with.
 
-Try to press the "refresh" button only once, as the code can get confused and double (or more) the number of "switches seen".
+Try to press the "refresh" button only once, but I have added mitigations to prevent "multipe reads". 
 
 Once you have a liist of switches, press right to scroll through the slecet / left, right screens. 
 The code reads data from the switches by ID and updates on and off positions. You can adjust the switch positions by pressing up and down, and the revised positions will be sent to the servos. 
