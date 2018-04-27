@@ -8,6 +8,7 @@ extern int SwitchNumbers;
 byte SW_all[9];
 extern int y;
 bool switchstate;
+extern byte ParseIndex;
 
 extern void SetWordIn_msg_loc_value(uint8_t* msg, uint8_t firstbyte, int value);
 
@@ -29,9 +30,9 @@ void drawImageDemo() {
 //Upload your image. I was succesful with a monochrome PNG file, whereas the XBM only resulted in an error.
 //Upload the created MONO file to your ESP8266 and use it with a code like this:
 
-    display.drawXbm(0,0, Terrier_Logo_width, Terrier_Logo_height, Terrier_Logo_bits); 
-    //display.drawXbm(64,32, WiFi_Logo_width, WiFi_Logo_height, WiFi_Logo_bits); 
-    display.display(); 
+   // display.drawXbm(0,0, Terrier_Logo_width, Terrier_Logo_height, Terrier_Logo_bits); 
+    display.drawXbm(34,14, WiFi_Logo_width, WiFi_Logo_height, WiFi_Logo_bits); 
+
 }
 void UpdateSetPositions(){
   uint8_t RocSendAddrCommand[15];
@@ -48,7 +49,7 @@ void UpdateSetPositions(){
   SetWordIn_msg_loc_value(RocSendAddrCommand, 7+4, RightIndexPos);
   MQTTRocnetSend("rocnet/ps",RocSendAddrCommand);
 }
-
+extern char DebugMsg[127];
 void SetSwitch(int switchindex,bool Throw){
    char MsgTemp[200];
   int cx;
@@ -56,11 +57,18 @@ void SetSwitch(int switchindex,bool Throw){
   {cx=sprintf(MsgTemp,"<sw id=\"%s\" cmd=\"turnout\"  />",Str2Chr(SW_id[switchindex]),RightIndexPos);}
   else {cx=sprintf(MsgTemp,"<sw id=\"%s\" cmd=\"straight\"  />",Str2Chr(SW_id[switchindex]),RightIndexPos);}
   MQTTSend("rocrail/service/client",MsgTemp);
+  DebugSprintfMsgSend( sprintf ( DebugMsg, " sending {%s}",MsgTemp));
+  
   }
 void DoDisplay(int MenuLevel){
-
-display.drawProgressBar(0, 58,127,6, ((y*100)/64)); 
+String TopMessage = "Available Switches:";
+TopMessage += (SwitchNumbers);
+display.setFont(ArialMT_Plain_10);
+//display.drawProgressBar(0, 58,127,6, ((y*100)/64)); 
 display.setTextAlignment(TEXT_ALIGN_CENTER);
+if (SwitchNumbers>=1){
+display.drawString(64,54,TopMessage);}
+
 switch (MenuLevel){
   
  case 0:  // top level
@@ -87,7 +95,7 @@ if (SwitchNumbers<=0){
   }
       break;
  case 1: // selected Switch show Left pos
- //show loco
+
  if (SwitchNumbers<=0){
    display.setFont(ArialMT_Plain_16);
    display.drawString(64,1,"No Switch");
@@ -95,18 +103,20 @@ if (SwitchNumbers<=0){
    else
     {
      display.setFont(ArialMT_Plain_16);
-     display.drawString(64,1,SW_id[switchindex]);
-     display.drawString(32,15,String(SW_bus[switchindex]));
-     display.drawString(75,15,String(SW_addr[switchindex]));
+     display.drawString(64,1,SW_id[switchindex]); 
+     display.setFont(ArialMT_Plain_10);
+     display.drawString(10,16,"Bus:");display.drawString(42,16,String(SW_bus[switchindex]));
+     display.drawString(75,16,"Addr:");display.drawString(100,16,String(SW_addr[switchindex]));
     }
- //show setting 
+ //show setting  
+    display.setFont(ArialMT_Plain_16);
     display.drawString(25,32,"Left:");
     display.drawString(60,32,String(LeftIndexPos));
    
       break;
       
-case 2: // selected loco, set fn
- //show loco
+case 2: // selected switch, set its right position
+
  if (SwitchNumbers<=0){
    display.setFont(ArialMT_Plain_16);
    display.drawString(64,1,"No Switch");
@@ -114,11 +124,13 @@ case 2: // selected loco, set fn
    else
     {
      display.setFont(ArialMT_Plain_16);
-     display.drawString(64,1,SW_id[switchindex]);
-     display.drawString(32,15,String(SW_bus[switchindex]));
-     display.drawString(75,15,String(SW_addr[switchindex]));
+     display.drawString(64,1,SW_id[switchindex]); 
+     display.setFont(ArialMT_Plain_10);
+     display.drawString(10,16,"Bus:");display.drawString(42,16,String(SW_bus[switchindex]));
+     display.drawString(75,16,"Addr:");display.drawString(100,16,String(SW_addr[switchindex]));
     }
- //show setting 
+ //show setting  
+    display.setFont(ArialMT_Plain_16);
     display.drawString(25,32,"Right:");
     display.drawString(60,32,String(RightIndexPos));
    
@@ -154,15 +166,15 @@ switch (MenuLevel){
  switchindex=switchindex-1;
  break;
  case 1:  // top level
- if(buttonState5){ LeftIndexPos=LeftIndexPos+1;}
- else  {LeftIndexPos=LeftIndexPos+10;}
+ if(buttonState5){ LeftIndexPos=LeftIndexPos+2;}
+ else  {LeftIndexPos=LeftIndexPos+15;}
  if (LeftIndexPos>=600){LeftIndexPos=600;}
   UpdateSetPositions();
   SetSwitch(switchindex,0);
  break;
  case 2:
- if(buttonState5){RightIndexPos=RightIndexPos+1;}
- else{RightIndexPos=RightIndexPos+10;}
+ if(buttonState5){RightIndexPos=RightIndexPos+2;}
+ else{RightIndexPos=RightIndexPos+15;}
  if (RightIndexPos>=600){RightIndexPos=600;}
   UpdateSetPositions();
   SetSwitch(switchindex,1);
@@ -186,16 +198,16 @@ switch (MenuLevel){
  switchindex=switchindex+1;
  break;
  case 1:  // level 1 (left)
- if(buttonState5){LeftIndexPos=LeftIndexPos-1;}
- else{LeftIndexPos=LeftIndexPos-10;}
+ if(buttonState5){LeftIndexPos=LeftIndexPos-2;}
+ else{LeftIndexPos=LeftIndexPos-15;}
  if (LeftIndexPos<=160){LeftIndexPos=160;}
  UpdateSetPositions();
   SetSwitch(switchindex,0);
 
  break;
  case 2:
- if(buttonState5){RightIndexPos=RightIndexPos-1;}
-  else {RightIndexPos=RightIndexPos-10;}
+ if(buttonState5){RightIndexPos=RightIndexPos-2;}
+  else {RightIndexPos=RightIndexPos-15;}
  if (RightIndexPos<=160){RightIndexPos=160;}
  UpdateSetPositions();
   SetSwitch(switchindex,1);
@@ -233,10 +245,14 @@ RocCommand[8]=SW_addr[switchindex]; //was 1
 RocCommand[9]=SW_addr[switchindex]; //was 8
 
   MQTTRocnetSend("rocnet/ps",RocCommand);
+  delay(50);
+  switchstate=0;
+  SetSwitch(switchindex,switchstate);// set to left position 
  break;
  case 1:
   UpdateSetPositions();
- 
+ switchstate=1;
+  SetSwitch(switchindex,switchstate);// set to right position 
  break;
  case2:
   UpdateSetPositions();
@@ -259,24 +275,24 @@ void ButtonSelect(int MenuLevel){
 switch (MenuLevel){
   
  case 0:  // top level
- 
-  MQTTSend("rocrail/service/client","<model cmd=\"swlist\" />");
+  ParseIndex=0;
+  MQTTSend("rocrail/service/client","<model cmd=\"swprops\" />");
  
  break;
 
  case 1:
  /// alternate switch position
- UpdateSetPositions();
- SetSwitch(switchindex,switchstate);
-switchstate=!switchstate;
- //MQTTSend("rocrail/service/client","<sw id=\"wood7\" cmd=\"straight\"   />");
+ //UpdateSetPositions();
+ SetSwitch(switchindex,switchstate);// like MQTTSend("rocrail/service/client","<sw id=\"wood7\" cmd=\"straight\"   />");
+ switchstate=!switchstate;
+  
  break;
  case 2:
   // alternate switch position 
-  UpdateSetPositions();
-  SetSwitch(switchindex,switchstate);switchstate=!switchstate;
-  //MQTTSend("rocrail/service/client","<sw id=\"wood7\" cmd=\"turnout\"   />");
-  
+ // UpdateSetPositions();
+  SetSwitch(switchindex,switchstate);// like MQTTSend("rocrail/service/client","<sw id=\"wood7\" cmd=\"turnout\"   />");
+  switchstate=!switchstate; 
+
  break;
  default:
  break;

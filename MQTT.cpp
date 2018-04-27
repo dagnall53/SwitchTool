@@ -41,7 +41,8 @@ uint32_t Ten_Sec;
 
 
 boolean Message_Decoded;
-
+extern bool AllDataRead;
+byte ParseIndex;
 int SwitchNumbers;
 String SW_id[MaxSwitches];
 int SW_bus[MaxSwitches];
@@ -132,28 +133,23 @@ char* Attrib(unsigned int Nth,char* id, byte* data,unsigned int Length) {// to f
 extern void Picture();
 
 
-void ParseSwitch(byte* payload, unsigned int Length){
+void ParseSwitchList(byte Switch, byte* payload, unsigned int Length){
   String Result;
-      Picture();
-      SwitchNumbers=Count(0," id=\"",payload,Length)-1;
-   
-      Serial.print(F("-- Found "));Serial.print(SwitchNumbers+1);Serial.println(" items");
-      for (int Switch=0; Switch<=SwitchNumbers ; Switch++){ // note storing from index 0, but attrib counts 1 as first seen
-         delay(1); // allow processor to do other things?
-         SW_id[Switch]=Attrib(Switch+1," id=\"",payload,Length);
-         Result=Attrib(Switch+1," bus=\"",payload,Length);
+     // allow processor to do other things?
+         SW_id[Switch]=Attrib(1,"\" id=\"",payload,Length);  // {" id="}
+         Result=Attrib(1," bus=\"",payload,Length);
          SW_bus[Switch]=Result.toInt();
-         Result=Attrib(Switch+1," addr1=\"",payload,Length);
+         Result=Attrib(1," addr1=\"",payload,Length);
          SW_addr[Switch]=Result.toInt();
-     
-     Serial.print("Attributes for <");Serial.print(Switch);Serial.print("> <");Serial.print(SW_id[Switch]);
+     SwitchNumbers=Switch+1;
+     if (SwitchNumbers>=MaxSwitches-1) {SwitchNumbers=MaxSwitches-1;}
+   Serial.print("Attributes for <");Serial.print(Switch);Serial.print("> <");Serial.print(SW_id[Switch]);
    Serial.print(">  BUS:(==Rocnode)");Serial.print (SW_bus[Switch]);
    Serial.print(" addr:");Serial.print (SW_addr[Switch]);
 
      Serial.println(" ");
    }
-  Serial.println(F("-- SW List Built -- "));
-}
+ 
 
 #define Recipient_Addr  1   //  use with SetWordIn_msg_loc_value(sendMessage,Recipient_Addr,data  , or get sender or recipient addr  
 #define Sender_Addr 3       //  use with SetWordIn_msg_loc_value(sendMessage,Sender_Addr,data   
@@ -214,20 +210,14 @@ void dump_byte_array(byte* buffer, byte bufferSize) {
   }
   }
 
-
-
+String ThisID;
+extern int switchindex;
 void MQTTFetch (char* topic, byte* payload, unsigned int Length) { //replaces rocfetch
   // do a check on length matching payload[7] ??
 char PayloadAscii[100];
 unsigned int y;
 
       Message_Decoded = false;
-      Serial.print("** MQTT rx topic:[");
-      Serial.print(topic);
-      Serial.print("] ");
-
-for (int i=0; i<=100;i++){PayloadAscii[i]=char(payload[i]);}
-
 //  Do Clock synch   
   if ((strncmp("rocnet/ck", topic, 9) == 0)) { //==0 if n bytes are the same
      hrs = payload[12];
@@ -235,11 +225,13 @@ for (int i=0; i<=100;i++){PayloadAscii[i]=char(payload[i]);}
      secs = payload[14]; 
      Message_Decoded = true;
      delay(subIPL);
-     
-        DebugSprintfMsgSend( sprintf ( DebugMsg, " IPaddr .%d  Time Synchronised. ",subIPL));
-       
-   // return;
-  }
+     DebugSprintfMsgSend( sprintf ( DebugMsg, " IPaddr .%d  Time Synchronised. ",subIPL));
+    }
+
+
+for (int i=0; i<=100;i++){PayloadAscii[i]=char(payload[i]);}
+
+
   
  if ((strncmp("rocnet/ps", topic, 9) == 0)) { //==0 if n bytes are the same this is a "Programming stationary" message
     
@@ -254,70 +246,53 @@ for (int i=0; i<=100;i++){PayloadAscii[i]=char(payload[i]);}
       ROC_Data[i] = payload[7 + i];
     }
 
- //dump for debug
-     // dump_byte_array(payload,Length);
-     // Serial.println();
-//Need to do this...  
-     // check its from the desired location: 
-     //SW_bus[switchindex]));//(ROCnode)
-     //SW_addr[switchindex])// Switch address
-     
-    // LeftIndexPos = payload[12];
-    // RightIndexPos = payload[13];
 // what have we got ?
+  
+   // will use  SW_addr[switchindex])// Switch address   
+   // LeftIndexPos = ;
+   // RightIndexPos = ;
+   // we should have asked for data about just 1 address from the bus(rocnode) we are interested in
+   if (IntFromPacket_at_Addr(payload,Sender_Addr)==SW_bus[switchindex]){ // Serial.print("this is the correct sender/node");
+   if (ROC_Data[1]==SW_addr[switchindex]){ // correct addr/pin
+      Serial.println();Serial.println( " Correct Bus and Addr for Switch: getting positions");// check this is the data addr we want
+      LeftIndexPos =IntFromPacket_at_Addr(ROC_Data,2);
+      RightIndexPos =IntFromPacket_at_Addr(ROC_Data,4);
+      for (byte x = 1; x <= 8; x++) {  SW_all[x]=ROC_Data[x];} //store the lot so we can send it back with modifified on and off pos from menu
+       Message_Decoded = true;                                
+       }}
+   // return; 
+
+    Message_Decoded = true; // but turn off debug print outputs in the final version
+   if   ((!Message_Decoded)) {
    Serial.print(" Sender");Serial.print( IntFromPacket_at_Addr(payload,Sender_Addr));
    Serial.print(" Recipient");Serial.print( IntFromPacket_at_Addr(payload,Recipient_Addr));
    Serial.print(" group");Serial.print( ROC_group);
    Serial.print(" code");Serial.print( ROC_code);
    //Serial.print(" Looking for addr:");Serial.print(SW_addr[switchindex]);
    Serial.println("  ");  
-   // will use  SW_addr[switchindex])// Switch address   
-   // LeftIndexPos = ;
-   // RightIndexPos = ;
-   // we should have asked for data about just 1 address from the bus(rocnode) we are interested in
-   if (IntFromPacket_at_Addr(payload,Sender_Addr)==SW_bus[switchindex]){ // Serial.print("this is the correct sender");
-   if (ROC_Data[1]==SW_addr[switchindex]){Serial.print( " Correct Bus and addr ");// check this is the data addr we want
-      LeftIndexPos =IntFromPacket_at_Addr(ROC_Data,2);
-      RightIndexPos =IntFromPacket_at_Addr(ROC_Data,4);
-      for (byte x = 1; x <= 8; x++) {  SW_all[x]=ROC_Data[x];} //store the lot so we can send it back with mofified on and off pos frm menu
-       //Message_Decoded = true;                                
-       }}
-   // this is printed if not understood by here...
-   if (!Message_Decoded){
-        for (byte i = 0; i <= 8; i++) { 
-           if ((8+(i*8))<= ROC_len){
-            Serial.print("Ch#:");Serial.print(ROC_Data[1+(i*8)]);
-            Serial.print(" Offpos:");Serial.print(IntFromPacket_at_Addr(ROC_Data,2+(i*8)));
-            Serial.print(" onpos:");Serial.print(IntFromPacket_at_Addr(ROC_Data,4+(i*8)));
-            Serial.print(" Offsteps:");Serial.print(ROC_Data[6+(i*8)]);
-            Serial.print(" ONsteps:");Serial.print(ROC_Data[7+(i*8)]);
-            Serial.print(" options:");Serial.println(ROC_Data[8+(i*8)]); 
-     Message_Decoded = true;
-  }}}
-  
-  if   ((!Message_Decoded)) {
-      Serial.print(" MSG  is <"); Serial.print(Show_ROC_MSG(Length)); Serial.println(">");}
-  
+                             }
+       // for test purposes, if not decoded,  it  must be something else so print for debugging....
      
-     
-   // return;
-  } // if ((strncmp("rocnet/ps", 
- 
-       
-       
+          if   ((!Message_Decoded)) { Serial.print("Unknown rocnet/ps MSG  is <"); Serial.print(Show_ROC_MSG(Length)); Serial.println(">");}
+   } // if ((strncmp("rocnet/ps", 
 
+   
 // is it a service info?
- if ((!Message_Decoded)&&((strncmp("rocrail/service/info", topic, 20) == 0))) {
-      if (strncmp("<swlist>",PayloadAscii,8)==0){
-      Serial.print(F(" Found big switch list  "));Serial.println();
-      Serial.print(F("--               Length:"));
-      Serial.print(Length);Serial.print(F("  ="));
-      y= MQTT_MAX_PACKET_SIZE;
-      Serial.print((100*Length)/MQTT_MAX_PACKET_SIZE);Serial.println(F("% msg size used"));
-      ParseSwitch(payload,Length);  
-      Message_Decoded = true;
-      }  
-
+ if ((strncmp("rocrail/service/info", topic, 20) == 0)) {
+      // need type check here using attrib?
+      //Serial.print(" 278: Attrib{");Serial.print(Attrib(1,"\" id=\"",payload,Length));Serial.println("}");
+      //Serial.print(" 279: Attrib bool{");Serial.print(strlen(Attrib(1,"\" id=\"",payload,Length)));Serial.println("}");
+      if (strlen(Attrib(1,"\" id=\"",payload,Length))>=1){;  // {does it contain " id="}
+      if ((ParseIndex<=MaxSwitches)&& (!AllDataRead)) { Serial.print(F(" Found switch properties list  <"));Serial.print(ParseIndex);Serial.println(">");
+      ThisID=Attrib(1,"\" id=\"",payload,Length); 
+      if (ThisID==SW_id[switchindex]){Serial.print("this is a response for somethng we are working with at the moment");}
+      else {
+           if (ThisID==SW_id[0]){Serial.print(" Read this data before "); AllDataRead=true;    }
+           else{ParseSwitchList(ParseIndex,payload,Length); ParseIndex++;}
+      } 
+          Message_Decoded = true;}
+        } 
+ }
 // known unimportant (to me) messages
      if (strncmp("<exception text=",PayloadAscii,16)==0){
          Message_Decoded = true; }  
@@ -327,7 +302,8 @@ for (int i=0; i<=100;i++){PayloadAscii[i]=char(payload[i]);}
          Message_Decoded = true; }
      if (strncmp("<sw id=",PayloadAscii,7)==0){
          Message_Decoded = true; }
-           
+       //switch off debug
+       Message_Decoded=true;      
  if(!Message_Decoded){
     Serial.println();
     Serial.print(F("--Service Info Message- Length:"));
@@ -343,7 +319,7 @@ for (int i=0; i<=100;i++){PayloadAscii[i]=char(payload[i]);}
  
       }
        
-    } // end of if  rocrail/service/info
+  
 
  Message_Decoded=true;  // switch off printout 
 // of not decoded, then it  must be something else so print for debugging....
@@ -365,8 +341,8 @@ if (!Message_Decoded){
   Serial.println(">");
  Serial.println("---------------------");
 Message_Decoded = true;
-}
-  // end of debug printing...
+}// end of debug printing...
+  
  
 } 
                                              
@@ -469,11 +445,17 @@ void DebugSprintfMsgSend(int CX){ // allows use of Sprintf function in the "cx" 
   delay(5);
 }
 extern uint8_t wifiaddr;
+extern void OLED_Display(char* L1,char* L2,char* L3);
 
 void reconnect() {
-  char ClientName[80];
-  char myName[15] = "HandControl:";
+   char Msg[80];
+   char ClientName[80];
+  char myName[15] = "Switch Tool:";
   sprintf(ClientName, "%s%i", myName, wifiaddr);
+ 
+  sprintf(Msg, "to %i:%i:%i:%i", mosquitto[0],mosquitto[1],mosquitto[1],mosquitto[3]);
+  OLED_Display("Trying to Connect:",ClientName,Msg);
+  delay(200);
   // Loop until we're reconnected 
   //digitalWrite (LED_BUILTIN , SignalON) ; ///   turn on
   PrintTime(" Attempting MQTT (re)connection. Attempt #");
@@ -487,41 +469,26 @@ void reconnect() {
 
     if (client.connect(ClientName)) {
       Serial.println();
-      DebugSprintfMsgSend( sprintf ( DebugMsg, "%s Connected at:%d.%d.%d.%d",ClientName,ip0,ip1,subIPH,subIPL));
-   /* if (mosquitto[3] != RN[14] ){   //RN[14] is the MQQT broker address, save if changed
-       RN[14]=mosquitto[3];
-       WriteEEPROM();
-       Data_Updated=true; 
-       EPROM_Write_Delay = millis()+Ten_Sec; 
-                                }
-     */ // can advise this node is connected now:
+      // can advise this node is connected now:
        DebugSprintfMsgSend( sprintf ( DebugMsg, "%s Connected at:%d.%d.%d.%d",ClientName,ip0,ip1,subIPH,subIPL));
       
-      //FlashMessage(" ------Connected to MQQT---------",1,400,100);
       // ... and now subscribe to topics  http://wiki.rocrail.net/doku.php?id=rocnet:rocnet-prot-en#groups
       
-     
       client.subscribe("rocrail/service/info", 1 ); // server information
-    
-     client.subscribe("rocnet/ck", 1 ); // Clock synch  information
-     client.subscribe("rocnet/ps", 1 ); // Data from the rocnode
+      client.subscribe("rocnet/ck", 1 ); // Clock synch  information
+      client.subscribe("rocnet/ps", 1 ); // Data from the rocnode
      // client.subscribe("rocrail/service/client", 1 ); // an we see client data? test..       
      // delay(100);
 
-       EPROM_Write_Delay = millis();
+     // no eeprom used in this sketch  EPROM_Write_Delay = millis();
      
     } else {
-      Serial.print(" failed, rc=");
+      Serial.print(" failed to find broker ");
       //Serial.print(client.state()); 
      // 
-     connects=connects+1;
-    if (connects>=5){  mosquitto[3] = mosquitto[3]+1;
-    if (mosquitto[3]>=50){mosquitto[3]=3;}   }   // limit mqtt broker to 3-50 to save scan time
     delay(100);
     client.setServer(mosquitto, 1883);   // Hard set port at 1833
       Serial.println(" try again ...");
-      //FlashMessage(".... Failed connect to MQTT.. attempting reconnect",4,250,250);
-      // Wait   before retrying  // perhaps add flashing here so when it stops we are connected?
       delay(100);
       digitalWrite (LED_BUILTIN , SignalOFF) ; ///   turn OFF
     }
