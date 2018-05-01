@@ -23,15 +23,10 @@ char* Str2Chr(String stringin){
 }
 
 void drawImageDemo() {
-    // see http://blog.squix.org/2015/05/esp8266-nodemcu-how-to-create-xbm.html
-    // on how to create xbm files
-   // Go to: http://www.online-utility.org/image_converter.jsp
-//Select MONO as Output format AND press “Select format” (Who has invented THAT UI???)
-//Upload your image. I was succesful with a monochrome PNG file, whereas the XBM only resulted in an error.
-//Upload the created MONO file to your ESP8266 and use it with a code like this:
+    // Use GIMP to convert files..
 
-   // display.drawXbm(0,0, Terrier_Logo_width, Terrier_Logo_height, Terrier_Logo_bits); 
-    display.drawXbm(34,14, WiFi_Logo_width, WiFi_Logo_height, WiFi_Logo_bits); 
+   display.drawXbm(0,0, Terrier_Logo_width, Terrier_Logo_height, Terrier_Logo); 
+   // display.drawXbm(34,14, WiFi_Logo_width, WiFi_Logo_height, WiFi_Logo_bits); 
 
 }
 void UpdateSetPositions(){
@@ -60,6 +55,8 @@ void SetSwitch(int switchindex,bool Throw){
   DebugSprintfMsgSend( sprintf ( DebugMsg, " sending {%s}",MsgTemp));
   
   }
+  
+  extern void Picture();
 void DoDisplay(int MenuLevel){
 String TopMessage = "Available Switches:";
 TopMessage += (SwitchNumbers);
@@ -75,9 +72,11 @@ switch (MenuLevel){
     display.setFont(ArialMT_Plain_10);
     display.drawString(64,1,"--- Select Switch ---");
 if (SwitchNumbers<=0){
-   display.setFont(ArialMT_Plain_16);
-    display.drawString(64,20," Press to ");
-    display.drawString(64,36,"Refresh List");
+  Picture();
+   display.setFont(ArialMT_Plain_10);
+    display.drawString(64,25," Press to ");
+    display.drawString(64,38,"List of Turnouts"); 
+    display.setFont(ArialMT_Plain_16);
 }
   else{  
     if (switchindex>=1){

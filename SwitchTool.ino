@@ -1,8 +1,8 @@
 #define ver 001
 
 
-#include <OLEDDisplay.h>
-#include <SSD1306.h>  //https://github.com/ThingPulse/esp8266-oled-ssd1306
+
+#include <SSD1306Wire.h>  //https://github.com/ThingPulse/esp8266-oled-ssd1306
 
 #include "images.h" 
 #include "Terrier.h"
@@ -38,7 +38,7 @@ IPAddress mosquitto;
 int connects;
 
 // connect to display using pins D1, D2 for I2C on address 0x3c
-SSD1306  display(0x3c, D1, D2);
+SSD1306Wire  display(0x3c, D1, D2);
  #include "Menu.h"; //place for menu and display stuff
 
  
@@ -60,9 +60,20 @@ int switchindex;
 int RightIndexPos;
 int LeftIndexPos;
 bool directionindex;
-
+bool AllDataRead;
+void OLED_Display(char* L1,char* L2,char* L3){
+  display.clear();
+ // Picture();
+  display.drawString(64, 10, L1);
+  display.drawString(64, 24, L2);
+  display.drawString(64, 38, L3);
+  display.display();
+}
 
 void ConnectionPrint() {
+  
+ char MsgTemp[127];
+ int cx;
   Serial.println("");
   Serial.println(F("---------------------------Connected-----------------------"));
   Serial.print (F(" Connected to SSID:"));
@@ -70,20 +81,32 @@ void ConnectionPrint() {
   Serial.print(F("  IP:"));
   Serial.println(WiFi.localIP());
  
-  //Serial.println("-----------------------------------------------------------");      
+ 
+ cx= sprintf (MsgTemp, " IP: %d:%d:%d:%d ", ipBroad[0],ipBroad[1],ipBroad[2],wifiaddr);
+ OLED_Display("Connected",MsgTemp,"");
+ delay(500); 
+
  
 }
+
 
 void Status(){
 delay(10);
   Serial.println();Serial.println();
   Serial.println(F("-----------------------------------------------------------"));
   Serial.println(F("             ESP8266 Rocrail Client 'Switch Tool'    ")); 
-  Serial.println(F("-------------------- limit 20 switches ------------------------"));
+  Serial.print(F("-------------------- limit "));
+  Serial.print(MaxSwitches);
+  Serial.println(F( " switches ------------------------"));
   Serial.print(F(  "                    revision:"));
   Serial.println(ver);
   Serial.println(F("-----------------------------------------------------------"));
-  WiFi.setOutputPower(0.0); //  0 sets transmit power to 0dbm to lower power consumption, but reduces usable range.. try 30 for extra range
+ OLED_Display("Looking for:",SSID_RR,"");
+  //display.drawString(64, 10, "Looking for:");
+  //display.drawString(64, 24, SSID_RR);
+  //display.display();
+  delay(500);
+  WiFi.setOutputPower(30); //  0 sets transmit power to 0dbm to lower power consumption, but reduces usable range.. try 30 for extra range
 
 #ifdef _Use_Wifi_Manager
    WiFiManager wifiManager;  // this  stores ssid and password invisibly  !!
@@ -93,7 +116,7 @@ delay(10);
 #else    
 
   WiFi.mode(WIFI_STA);  //Alternate "normal" connection to wifi
-  WiFi.setOutputPower(30);
+  
   WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
   Serial.print(F("Trying to connect to {"));  Serial.print(wifiSSID.c_str());Serial.print(F("} "));
   while (WiFi.status() != WL_CONNECTED) {delay(500);Serial.print(".");}
@@ -108,6 +131,7 @@ delay(10);
   subIPL = ipBroad[3];
  wifiaddr = ipBroad[3];
   ConnectionPrint();
+  delay(100);
   ipBroad[3] = 255; //Set broadcast to local broadcast ip e.g. 192.168.0.255 // used in udp version of this program
  
  //   ++++++++++ MQTT setup stuff   +++++++++++++++++++++
@@ -115,7 +139,12 @@ delay(10);
   mosquitto[3] = BrokerAddr; //18;                //forced  mosquitto address, where the broker is! originally saved as RN[14], 
   Serial.print(F(" Mosquitto will first try to connect to:"));
   Serial.println(mosquitto);
-  MQTT_Setup();
+  char Message[80];
+  sprintf(Message, "SUBIP:%i", mosquitto[3]);
+  OLED_Display("MQTT Setup",Message,"");
+  delay(100);
+  MQTT_Setup();  
+
     Serial.println(F("-----------MQTT NOW setup ----------------")); 
 }
 
@@ -132,28 +161,7 @@ void PrintLocoSettings(){
            // Serial.print(F(" spdcnt:"));Serial.print (LOCO_spcnt[loco]);
       Serial.println("");}
 }
-/*void SetLocoArray(){
-  LocoNumbers=6;
 
-for (int loco=1; loco<= LocoNumbers; loco++){
-            SW_id[loco]= "one <";SW_id[loco]+= loco;//SW_id[loco]+= char(">");
-            SW_bus[loco]="two";
-            SW_addr[loco]="three";
-            LOCO_V_cru[loco]="four";
-            LOCO_V_max[loco]="Five";
-            LOCO_spcnt[loco]="six";
-            }
-  
-        for (int loco=1; loco<= LocoNumbers; loco++){
-            Serial.print("Attributes stored for <");Serial.print(loco);Serial.print("> ");Serial.print(SW_id[loco]);
-            Serial.print("> Vmin:");Serial.print (SW_bus[loco]);
-            Serial.print(" Vmid:");Serial.print (SW_addr[loco]);
-            Serial.print(" Vcru:");Serial.print (LOCO_V_cru[loco]);
-            Serial.print(" Vmax:");Serial.print (LOCO_V_max[loco]);
-            Serial.print(" spdcnt:");Serial.print (LOCO_spcnt[loco]);
-      Serial.println(" ");}
-}
-*/
 void Picture(){
   display.clear(); 
   drawImageDemo(); 
@@ -175,25 +183,13 @@ void setup() {
   display.init();
   display.setTextAlignment(TEXT_ALIGN_CENTER);
   display.setFont(ArialMT_Plain_16);
-//  display.flipScreenVertically();  
-//display.setRotation(1); 
-  // set text y coordinate to start at 0
-
-  
+ 
   y = 0;
 
-connects=0;
+ connects=0;
 
  Status();
-Picture();
- delay(5000);  display.clear(); 
-  display.drawString(64, 12, "Connected");
-  char MsgTemp[127];
-  int cx;
-  cx= sprintf (MsgTemp, " IP: %d:%d:%d:%d ", ipBroad[0],ipBroad[1],ipBroad[2],wifiaddr);
-  display.drawString(64, 32, MsgTemp);
-  display.display(); delay(100); 
-  delay(2000); 
+
 // initial defaults
 MenuLevel=0;
 switchindex=1;
@@ -201,6 +197,8 @@ RightIndexPos=3;
 LeftIndexPos=0;
 directionindex=true;
 SwitchNumbers=0; 
+AllDataRead=false;
+SW_id[0]="this is an unikely name";
 }
 
  void MQTT_DO(void){
