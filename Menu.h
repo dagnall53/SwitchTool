@@ -6,7 +6,8 @@ extern int LeftIndexPos;
 extern bool directionindex;
 extern int SwitchNumbers;
 byte SW_all[9];
-extern int y;
+//extern int y;
+extern uint32_t ButtonPressTimer;
 bool switchstate;
 extern byte ParseIndex;
 
@@ -58,7 +59,7 @@ void SetSwitch(int switchindex,bool Throw){
   
   extern void Picture();
 void DoDisplay(int MenuLevel){
-String TopMessage = "Available Switches:";
+String TopMessage = "Available Turnouts:";
 TopMessage += (SwitchNumbers);
 display.setFont(ArialMT_Plain_10);
 //display.drawProgressBar(0, 58,127,6, ((y*100)/64)); 
@@ -74,8 +75,8 @@ switch (MenuLevel){
 if (SwitchNumbers<=0){
   Picture();
    display.setFont(ArialMT_Plain_10);
-    display.drawString(64,25," Press to ");
-    display.drawString(64,38,"List of Turnouts"); 
+    display.drawString(64,27," Press to update");
+    display.drawString(64,41,"List of Turnouts"); 
     display.setFont(ArialMT_Plain_16);
 }
   else{  

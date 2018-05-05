@@ -454,8 +454,6 @@ void reconnect() {
   sprintf(ClientName, "%s%i", myName, wifiaddr);
  
   sprintf(Msg, "to %i:%i:%i:%i", mosquitto[0],mosquitto[1],mosquitto[1],mosquitto[3]);
-  OLED_Display("Trying to Connect:",ClientName,Msg);
-  delay(200);
   // Loop until we're reconnected 
   //digitalWrite (LED_BUILTIN , SignalON) ; ///   turn on
   PrintTime(" Attempting MQTT (re)connection. Attempt #");
