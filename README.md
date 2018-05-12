@@ -1,5 +1,7 @@
 # SwitchTool
 Rocnet MQTT switch setting tool for Rocrail 
+## Programming
+Compile using the Board = "NodeMCU 1.0 (ESP12E Module)" option.
 ## A simple tool for setting the switch positions on Servo operated points (turnouts)
 Number of points (~100) readable is limited by MQTT message limits, you will need to modify PubSubClient to adjust the maximum size of message acceptable. 
 
